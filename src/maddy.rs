@@ -78,6 +78,11 @@ enum DashCoroutineBreakpoint {
 
 #[repr(C)]
 #[derive(Debug, Default)]
+/// An instance of Madeline's movement controller.
+/// 
+/// Don't set any fields that don't have documentation
+/// unless you know what you're doing
+/// or it's clear what that will do.
 pub struct Madeline {
     
     // Our stuff
