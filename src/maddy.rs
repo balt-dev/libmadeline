@@ -227,6 +227,7 @@ impl Madeline {
     }
 
     #[no_mangle]
+    /// Ticks Madeline's internal state, using the delta-time between the last tick.
     pub extern "C" fn CLST_Tick(&mut self, delta_time: f32) {
         self.input.refresh();
 
@@ -470,6 +471,8 @@ impl Madeline {
     }
 
     #[no_mangle]
+    /// Moves Madeline on the X axis, respecting movement callbacks.
+    /// Enable call_back if you want to respect what the player should do when hitting a wall.
     pub extern "C" fn CLST_MoveH(&mut self, mut amount: f32, call_back: bool) -> bool {
         let mut hit = false;
         if let Some(callback) = self.move_h_callback {
@@ -527,6 +530,8 @@ impl Madeline {
     }
 
     #[no_mangle]
+    /// Moves Madeline on the Y axis, respecting movement callbacks.
+    /// Enable call_back if you want to respect what the player should do when hitting a ceiling or floor.
     pub extern "C" fn CLST_MoveV(&mut self, mut amount: f32, call_back: bool) -> bool {
         let mut hit = false;
         if let Some(callback) = self.move_v_callback {
@@ -842,6 +847,10 @@ impl Madeline {
     }
 
     #[no_mangle]
+    /// Sets the state of Madeline's state machine,
+    /// respecting the state's methods for beginning and ending.
+    /// 
+    /// You should probably always use this instead of setting state directly.
     pub extern "C" fn CLST_SetState(&mut self, state: State) {
         if self.state == state { return }
 
