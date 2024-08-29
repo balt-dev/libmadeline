@@ -2,7 +2,7 @@
 language = "c"
 
 header = """/*
-This code is licensed under the MPL. Read here: https://www.mozilla.org/en-US/MPL/2.0/.
+This code is licensed under the MPL, authored by baltdev, in the year 2024. Read here: https://www.mozilla.org/en-US/MPL/2.0/.
 
 Generated with cbindgen. Probably don't edit this file.
 
@@ -27,6 +27,8 @@ style = "both"
 line_endings = "LF"
 
 cpp_compat = true
+
+namespace = "celeste"
 
 [export]
 

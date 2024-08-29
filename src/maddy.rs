@@ -1123,9 +1123,10 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
                 max_fall = MAX_FALL.lerp(WALL_SLIDE_START_MAX, maddy.wall_slide_timer / WALL_SLIDE_TIME);
             }
 
-            let mult = if 
-                maddy.speed.y.abs() < HALF_GRAV_THRESHOLD && (maddy.input.jumping() || maddy.auto_jump)
-            { 0.5 } else { 1.0 };
+            let mult = 
+                if maddy.speed.y.abs() < HALF_GRAV_THRESHOLD && (maddy.input.jumping() || maddy.auto_jump)
+                    { 0.5 } else { 1.0 }
+                * maddy.inventory.gravity_mult;
 
             maddy.speed.y = maddy.speed.y.approach(max_fall, GRAVITY * mult * delta_time);
         }

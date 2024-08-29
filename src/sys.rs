@@ -1,6 +1,6 @@
 use core::fmt::Display;
 
-use crate::constants::MAX_DASHES;
+use crate::constants::{CLIMB_MAX_STAMINA, MAX_DASHES};
 
 #[repr(i8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -56,17 +56,21 @@ impl Color {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub struct Inventory {
     pub max_dashes: u8,
-    pub no_refills: bool
+    pub no_refills: bool,
+    pub max_stamina: f32,
+    pub gravity_mult: f32,
 }
 
 impl Default for Inventory {
     fn default() -> Self {
         Self {
             max_dashes: MAX_DASHES,
-            no_refills: false
+            no_refills: false,
+            max_stamina: CLIMB_MAX_STAMINA,
+            gravity_mult: 1.
         }
     }
 }
