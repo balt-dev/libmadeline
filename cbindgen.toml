@@ -1,0 +1,33 @@
+
+language = "c"
+
+header = """/*
+This code is licensed under the MPL. Read here: https://www.mozilla.org/en-US/MPL/2.0/.
+
+Generated with cbindgen. Probably don't edit this file.
+
+Have fun you dork <3
+
+*/"""
+
+include_guard = "AYO_MAD_LEAN_IN_OTHER_GAME_REAL"
+
+braces = "SameLine"
+
+line_length = 100
+
+tab_width = 4
+
+documentation = true
+
+documentation_style = "auto"
+
+style = "both"
+
+line_endings = "LF"
+
+cpp_compat = true
+
+[export]
+
+prefix = "CLST_"
