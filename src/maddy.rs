@@ -135,7 +135,6 @@ pub struct Madeline {
 
     // Actual fields
     position: Vector2,
-    previous_position: Vector2,
     speed: Vector2,
     collider: Hitbox,
     hurtbox: Hitbox,
@@ -209,7 +208,6 @@ impl Madeline {
         let mut this = Box::<Self>::default();
         
         this.position = position;
-        this.previous_position = position;
         this.collider = NORMAL_HITBOX;
         this.hurtbox = NORMAL_HURTBOX;
         this.dashes = MAX_DASHES;
@@ -237,8 +235,6 @@ impl Madeline {
         self.input.refresh();
 
         self.time_active += delta_time;
-
-        self.previous_position = self.position;
 
         // vars
         self.idle_timer += delta_time;
