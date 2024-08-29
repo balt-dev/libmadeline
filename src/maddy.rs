@@ -81,7 +81,7 @@ enum DashCoroutineBreakpoint {
 pub struct Madeline {
     
     // Our stuff
-    /// The player's state. DO NOT manually set this.
+    /// Madeline's state. DO NOT manually set this.
     /// Instead, use CLST_SetState.
     pub state: State,
     /// The player's input.
