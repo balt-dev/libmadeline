@@ -93,6 +93,11 @@ typedef struct CLST_Vector2 {
     float y;
 } CLST_Vector2;
 
+/**
+ * A struct detailing the current player input.
+ *
+ * Note that you will have to buffer input yourself.
+ */
 typedef struct CLST_Input {
     /**
      * The aim direction of the movement.

@@ -19,9 +19,16 @@ You can go and do your chained ultras and reverse supers and all that jazz all y
 
 ## Usage
 
-You can find a copy of the library in the `dist` folder.
+You can find a copy of the library in the `dist` folder, and an example project in the `demo` folder.
 
-In order to get an instance of Madeline, you need to cal
+In order to get an instance of Madeline, you need to call `CLST_Init`, which will give you a pointer to a Madeline object.
+
+**DO NOT `delete` OR `free()` THIS POINTER.**
+
+When you are done with it, pass it to `CLST_Drop`, which will safely discard it.
+
+In order to update Madeline's state, set the `input` field as needed according to player input,
+and then call `CLST_Tick` with the elapsed time since the last tick.
 
 ## Celeste's licensing
 

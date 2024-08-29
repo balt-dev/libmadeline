@@ -19,6 +19,9 @@ pub enum RumbleLength {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]
+/// A struct detailing the current player input.
+/// 
+/// Note that you will have to buffer input yourself.
 pub struct Input {
     /// The aim direction of the movement.
     pub aim: Vector2,
