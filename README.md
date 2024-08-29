@@ -19,6 +19,8 @@ You can go and do your chained ultras and reverse supers and all that jazz all y
 
 ## Usage
 
+You can find a copy of the library in the `dist` folder.
+
 In order to get an instance of Madeline, you need to cal
 
 ## Celeste's licensing
