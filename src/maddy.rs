@@ -111,7 +111,8 @@ pub struct Madeline {
     pub dash_collision_callback: Option<extern "C" fn(&Self, Vector2) -> DashCollisionResults>,
     /// A callback to call when moving Madeline.
     /// This takes in an amount to move her in the X direction,
-    /// and should return a corrected amount that makes her not clip into anything.
+    /// and should change that amount to make her not clip into anything,
+    /// returning a boolean that says whether she hit anything.
     pub move_h_callback: Option<extern "C" fn(&Self, &mut f32) -> bool>,
     /// A callback to call when moving Madeline.
     /// This takes in an amount to move her in the Y direction,

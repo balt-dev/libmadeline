@@ -192,15 +192,17 @@ typedef struct CLST_Madeline {
     /**
      * A callback to call when moving Madeline.
      * This takes in an amount to move her in the X direction,
-     * and should return a corrected amount that makes her not clip into anything.
+     * and should change that amount to make her not clip into anything,
+     * returning a boolean that says whether she hit anything.
      */
-    float (*move_h_callback)(const struct CLST_Madeline*, float);
+    bool (*move_h_callback)(const struct CLST_Madeline*, float*);
     /**
      * A callback to call when moving Madeline.
      * This takes in an amount to move her in the Y direction,
-     * and should return a corrected amount that makes her not clip into anything.
+     * and should change that amount to make her not clip into anything,
+     * returning a boolean that says whether she hit anything.
      */
-    float (*move_v_callback)(const struct CLST_Madeline*, float);
+    bool (*move_v_callback)(const struct CLST_Madeline*, float*);
     /**
      * A callback to call to determine a friction factor.
      * Returning 0 means no friction, and returning 1 means full friction.
