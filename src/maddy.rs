@@ -16,9 +16,9 @@ use constants::*;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub enum DashCollisionResults {
     #[default]
-    Ignore,
-    Rebound,
-    Bounce
+    ResIgnore,
+    ResRebound,
+    ResBounce
 }
 
 #[repr(C)]
@@ -71,9 +71,9 @@ impl FloatExt for f32 {
 #[repr(C)]
 enum DashCoroutineBreakpoint {
     #[default]
-    Start,
-    __1,
-    __2,
+    BreakpointStart,
+    Breakpoint1,
+    Breakpoint2,
 }
 
 #[repr(C)]
@@ -270,7 +270,7 @@ impl Madeline {
             }
         }
 
-        if self.on_ground && self.state != State::Climb {
+        if self.on_ground && self.state != State::StClimb {
             self.auto_jump = false;
             self.stamina = CLIMB_MAX_STAMINA;
             self.wall_slide_timer = WALL_SLIDE_TIME;
@@ -294,7 +294,7 @@ impl Madeline {
         if self.dash_refill_cooldown_timer > 0. {
             self.dash_refill_cooldown_timer -= delta_time;
         } else if !self.inventory.no_refills {
-            if self.state == State::Swim || (self.on_ground && self.collide(self.position + Vector2::UNIT_Y)) {
+            if self.state == State::StSwim || (self.on_ground && self.collide(self.position + Vector2::UNIT_Y)) {
                 self.refill_dash();
             }
         }
@@ -322,8 +322,8 @@ impl Madeline {
         }
 
         // facing
-        if self.move_x != 0 && self.state != State::Climb {
-            let facing = if self.move_x > 0 { Facings::Right } else { Facings::Left };
+        if self.move_x != 0 && self.state != State::StClimb {
+            let facing = if self.move_x > 0 { Facings::FacingRight } else { Facings::FacingLeft };
             self.facing = facing;
         }
 
@@ -353,7 +353,7 @@ impl Madeline {
         }
 
         if self.check_stamina() < CLIMB_TIRED_THRESHOLD {
-            self.rumble(RumbleStrength::Light, RumbleLength::Short);
+            self.rumble(RumbleStrength::StrLight, RumbleLength::LenShort);
             self.was_tired = true;
         }
 
@@ -374,7 +374,7 @@ impl Madeline {
         self.CLST_MoveV(self.speed.y * delta_time, true);
 
         // swimming
-        if self.state == State::Swim {
+        if self.state == State::StSwim {
             if self.speed.y < 0. && self.speed.y >= SWIM_MAX_RISE {
                 while !self.swim_check() {
                     self.speed.y = 0.;
@@ -383,8 +383,8 @@ impl Madeline {
                     }
                 }
             }
-        } else if matches!(self.state, State::Normal | State::Climb) && self.swim_check() {
-            self.CLST_SetState(State::Swim);
+        } else if matches!(self.state, State::StNormal | State::StClimb) && self.swim_check() {
+            self.CLST_SetState(State::StSwim);
         }
 
         let ducking = self.ducking();
@@ -459,8 +459,8 @@ impl Madeline {
         }
          */
         let at = match self.facing {
-            Facings::Right => self.collider.top_right() + Vector2::UNIT_Y * (4. + add_y),
-            Facings::Left => self.collider.top_left() - Vector2::UNIT_X + Vector2::UNIT_Y * (4. + add_y)
+            Facings::FacingRight => self.collider.top_right() + Vector2::UNIT_Y * (4. + add_y),
+            Facings::FacingLeft => self.collider.top_left() - Vector2::UNIT_X + Vector2::UNIT_Y * (4. + add_y)
         };
 
         !self.collide(at) && !self.collide(at + Vector2::UNIT_Y * (-4. + add_y))
@@ -489,20 +489,20 @@ impl Madeline {
                 if let Some(cb) = self.dash_collision_callback {
                     let res = cb(self, self.dash_dir);
                     match res {
-                        DashCollisionResults::Bounce =>
+                        DashCollisionResults::ResBounce =>
                             self.reflect_bounce(Vector2::new(
                                 -self.speed.x.signum(),
                                 0.
                             )),
-                        DashCollisionResults::Rebound =>
+                        DashCollisionResults::ResRebound =>
                             self.rebound(self.speed.x.signum() as i8),
-                        DashCollisionResults::Ignore => ()
+                        DashCollisionResults::ResIgnore => ()
                     }
                     return true;
                 }
             }
 
-            if self.state == State::Dash {
+            if self.state == State::StDash {
                 if self.on_ground && self.can_unduck_at(self.position + Vector2::UNIT_X * self.speed.x.signum()) {
                     self.set_ducking(true);
                     return true;
@@ -543,7 +543,7 @@ impl Madeline {
         self.position.y += amount;
         if call_back && hit {
             // OnCollideV
-            if self.state == State::Swim {
+            if self.state == State::StSwim {
                 self.speed.y = 0.;
                 return true;
             }
@@ -552,14 +552,14 @@ impl Madeline {
                 if let Some(cb) = self.dash_collision_callback {
                     let res = cb(self, self.dash_dir);
                     match res {
-                        DashCollisionResults::Bounce =>
+                        DashCollisionResults::ResBounce =>
                             self.reflect_bounce(Vector2::new(
                                 0.,
                                 -self.speed.y.signum()
                             )),
-                        DashCollisionResults::Rebound =>
+                        DashCollisionResults::ResRebound =>
                             self.rebound(0),
-                        DashCollisionResults::Ignore => ()
+                        DashCollisionResults::ResIgnore => ()
                     }
                     return true;
                 }
@@ -575,8 +575,8 @@ impl Madeline {
                 }
     
     
-                if self.state != State::Climb {                    
-                    self.rumble(RumbleStrength::Light, RumbleLength::Short);
+                if self.state != State::StClimb {                    
+                    self.rumble(RumbleStrength::StrLight, RumbleLength::LenShort);
                 }
             } else if self.speed.y < 0. {
                 if self.speed.x <= 0. {
@@ -779,7 +779,7 @@ impl Madeline {
     fn climb_jump(&mut self) {
         if !self.on_ground {
             self.stamina -= CLIMB_JUMP_COST;
-            self.rumble(RumbleStrength::Light, RumbleLength::Medium);
+            self.rumble(RumbleStrength::StrLight, RumbleLength::LenMedium);
         }
 
         self.jump(false, false);
@@ -805,7 +805,7 @@ impl Madeline {
         self.wall_boost_timer = 0.;
         self.force_move_x_timer = 0.;
 
-        self.CLST_SetState(State::Normal);
+        self.CLST_SetState(State::StNormal);
     }
 
     fn reflect_bounce(&mut self, dir: Vector2) {
@@ -823,7 +823,7 @@ impl Madeline {
         self.dash_attack_timer = 0.;
         self.force_move_x_timer = 0.;
 
-        self.CLST_SetState(State::Normal);
+        self.CLST_SetState(State::StNormal);
     }
     
     fn lift_boost(&self) -> Vector2 {
@@ -883,11 +883,11 @@ impl Madeline {
         use DashCoroutineBreakpoint as Brk;
 
         let res = match self.dash_coroutine_breakpoint {
-            Brk::Start => {
-                self.dash_coroutine_breakpoint = Brk::__1;
+            Brk::BreakpointStart => {
+                self.dash_coroutine_breakpoint = Brk::Breakpoint1;
                 None
             },
-            Brk::__1 => {
+            Brk::Breakpoint1 => {
                 let dir = self.last_aim;
 
                 let mut new_speed = dir * DASH_SPEED;
@@ -905,8 +905,8 @@ impl Madeline {
 
                 self.dash_dir = dir;
                 self.facing = match self.dash_dir.x.partial_cmp(&0.) {
-                    Some(Ordering::Greater) => Facings::Right,
-                    Some(Ordering::Less) => Facings::Left,
+                    Some(Ordering::Greater) => Facings::FacingRight,
+                    Some(Ordering::Less) => Facings::FacingLeft,
                     _ => self.facing
                 };
 
@@ -922,10 +922,10 @@ impl Madeline {
                     self.set_ducking(true);
                 }
 
-                self.dash_coroutine_breakpoint = Brk::__2;
+                self.dash_coroutine_breakpoint = Brk::Breakpoint2;
                 Some(DASH_TIME)
             },
-            Brk::__2 => {
+            Brk::Breakpoint2 => {
                 self.auto_jump = true;
                 self.auto_jump_timer = 0.;
                 if self.dash_dir.y <= 0. {
@@ -934,7 +934,7 @@ impl Madeline {
                 if self.speed.y < 0. {
                     self.speed.y *= END_DASH_UP_MULT;
                 }
-                self.CLST_SetState(State::Normal);
+                self.CLST_SetState(State::StNormal);
                 None
             }
         };
@@ -950,18 +950,18 @@ impl Madeline {
 #[repr(C)]
 pub enum State {
     #[default]
-    Normal,
-    Climb,
-    Dash,
-    Swim,
+    StNormal,
+    StClimb,
+    StDash,
+    StSwim,
 }
 
 impl State {
     fn begin(self, maddy: &mut Madeline) {
         match self {
-            State::Normal => 
+            State::StNormal => 
                 maddy.max_fall = MAX_FALL,
-            State::Climb => {
+            State::StClimb => {
                 maddy.auto_jump = false;
                 maddy.speed.x = 0.;
                 maddy.speed.y *= CLIMB_GRAB_Y_MULT;
@@ -970,7 +970,7 @@ impl State {
                 maddy.wall_boost_timer = 0.;
                 maddy.last_climb_move = 0;
 
-                maddy.rumble(RumbleStrength::Medium, RumbleLength::Short);
+                maddy.rumble(RumbleStrength::StrMedium, RumbleLength::LenShort);
 
                 for _ in 0..(CLIMB_CHECK_DIST as i32) {
                     if !maddy.collide(maddy.position + Vector2::UNIT_X * maddy.facing as i8 as f32) {
@@ -980,15 +980,15 @@ impl State {
                     }
                 }
             },
-            State::Dash => {
+            State::StDash => {
                 maddy.dash_started_on_ground = maddy.on_ground;
                 maddy.dash_cooldown_timer = DASH_COOLDOWN;
                 maddy.dash_refill_cooldown_timer = DASH_REFILL_COOLDOWN;
                 maddy.started_dashing = true;
                 maddy.wall_slide_timer = WALL_SLIDE_TIME;
-                maddy.dash_coroutine_breakpoint = DashCoroutineBreakpoint::Start;
+                maddy.dash_coroutine_breakpoint = DashCoroutineBreakpoint::BreakpointStart;
                 
-                maddy.rumble(RumbleStrength::Strong, RumbleLength::Medium);
+                maddy.rumble(RumbleStrength::StrStrong, RumbleLength::LenMedium);
 
                 maddy.dash_attack_timer = DASH_ATTACK_TIME;
                 maddy.before_dash_speed = maddy.speed;
@@ -999,7 +999,7 @@ impl State {
                     maddy.set_ducking(false);
                 }
             }
-            State::Swim => {
+            State::StSwim => {
                 if maddy.speed.y > 0. {
                     maddy.speed.y *= SWIM_Y_SPEED_MULT;
                 }
@@ -1010,10 +1010,10 @@ impl State {
 
     fn update(self, maddy: &mut Madeline, delta_time: f32) {
         let new_state = match self {
-            State::Normal => update_normal(maddy, delta_time),
-            State::Climb => update_climb(maddy, delta_time),
-            State::Dash => update_dash(maddy, delta_time),
-            State::Swim => update_swim(maddy, delta_time)
+            State::StNormal => update_normal(maddy, delta_time),
+            State::StClimb => update_climb(maddy, delta_time),
+            State::StDash => update_dash(maddy, delta_time),
+            State::StSwim => update_swim(maddy, delta_time)
         };
 
         maddy.CLST_SetState(new_state);
@@ -1021,17 +1021,17 @@ impl State {
 
     fn end(self, maddy: &mut Madeline) {
         match self {
-            State::Normal => {
+            State::StNormal => {
                 maddy.wall_boost_timer = 0.;
                 maddy.wall_speed_retention_timer = 0.;
                 maddy.hop_wait_x = 0;
             },
-            State::Climb =>
+            State::StClimb =>
                 maddy.wall_speed_retention_timer = 0.,
-            State::Dash => {
-                maddy.dash_coroutine_breakpoint = DashCoroutineBreakpoint::Start;
+            State::StDash => {
+                maddy.dash_coroutine_breakpoint = DashCoroutineBreakpoint::BreakpointStart;
             }
-            State::Swim => {}
+            State::StSwim => {}
         }
     }
 }
@@ -1047,7 +1047,7 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
     {
         if maddy.climb_check(0.) {
             maddy.set_ducking(false);
-            return State::Climb;
+            return State::StClimb;
         }
 
         if maddy.input.aim.y < maddy.input.deadzone.y {
@@ -1057,7 +1057,7 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
                 {
                     maddy.CLST_MoveV(-i as f32, false);
                     maddy.set_ducking(false);
-                    return State::Climb;
+                    return State::StClimb;
                 }
             }
         }
@@ -1067,7 +1067,7 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
         maddy.speed += maddy.lift_boost();
         maddy.dashes = maddy.dashes.saturating_sub(1);
         maddy.input.dash_consumed = true;
-        return State::Dash;
+        return State::StDash;
     }
 
     if !maddy.ducking() {
@@ -1156,7 +1156,7 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
             maddy.jump(true, true)
         } else if maddy.can_unduck() {
             if maddy.wall_jump_check(1) {
-                if maddy.facing == Facings::Right
+                if maddy.facing == Facings::FacingRight
                     && maddy.input.grabbing()
                     && maddy.stamina > 0.
                     && maddy.can_climb_at(
@@ -1173,7 +1173,7 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
                     maddy.wall_jump(-1);
                 }
             } else if maddy.wall_jump_check(-1) {
-                if maddy.facing == Facings::Left
+                if maddy.facing == Facings::FacingLeft
                     && maddy.input.grabbing()
                     && maddy.stamina > 0.
                     && maddy.can_climb_at(
@@ -1195,7 +1195,7 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
         }
     }
 
-    State::Normal
+    State::StNormal
 }
 
 fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
@@ -1212,19 +1212,19 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
             maddy.climb_jump()
         }
 
-        return State::Normal;
+        return State::StNormal;
     }
 
     if maddy.can_dash() {
         maddy.speed += maddy.lift_boost();
         maddy.dashes = maddy.dashes.saturating_sub(1);
         maddy.input.dash_consumed = true;
-        return State::Dash;
+        return State::StDash;
     }
 
     if !maddy.input.grabbing() {
         maddy.speed += maddy.lift_boost();
-        return State::Normal;
+        return State::StNormal;
     }
 
     if !maddy.collide(maddy.position + Vector2::UNIT_X * maddy.facing as i8 as f32) {
@@ -1232,7 +1232,7 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
             maddy.climb_hop();
         }
 
-        return State::Normal;
+        return State::StNormal;
     }
 
     let mut target = 0.;
@@ -1252,7 +1252,7 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
                 try_slip = true;
             } else if maddy.slip_check(0.) {
                 maddy.climb_hop();
-                return State::Normal;
+                return State::StNormal;
             }
         } else if maddy.input.aim.y >= maddy.input.deadzone.y {
             target = CLIMB_DOWN_SPEED;
@@ -1289,7 +1289,7 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
             maddy.stamina -= CLIMB_UP_COST * delta_time;
 
             if maddy.on_interval(0.2, delta_time) {
-                maddy.rumble(RumbleStrength::Light, RumbleLength::Short)
+                maddy.rumble(RumbleStrength::StrLight, RumbleLength::LenShort)
             }
         } else {
             if maddy.last_climb_move == 0 {
@@ -1297,17 +1297,17 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
             }
 
             if !maddy.on_ground && maddy.on_interval(0.8, delta_time) {
-                maddy.rumble(RumbleStrength::Light, RumbleLength::Short);
+                maddy.rumble(RumbleStrength::StrLight, RumbleLength::LenShort);
             }
         }
     }
 
     if maddy.stamina <= 0. {
         maddy.speed += maddy.lift_boost();
-        return State::Normal;
+        return State::StNormal;
     }
 
-    State::Climb
+    State::StClimb
 }
 
 fn update_dash(maddy: &mut Madeline, delta_time: f32) -> State {
@@ -1319,7 +1319,7 @@ fn update_dash(maddy: &mut Madeline, delta_time: f32) -> State {
         if let Some(res) = maddy.advance_dash() {
             maddy.coroutine_timer = res;
         }
-        if maddy.state != State::Dash {
+        if maddy.state != State::StDash {
             return maddy.state;
         }
     }
@@ -1334,7 +1334,7 @@ fn update_dash(maddy: &mut Madeline, delta_time: f32) -> State {
         && maddy.jump_grace_timer > 0.
     {
         maddy.super_jump();
-        return State::Normal;
+        return State::StNormal;
     }
 
     // Wouncing :3
@@ -1342,30 +1342,30 @@ fn update_dash(maddy: &mut Madeline, delta_time: f32) -> State {
         if maddy.input.jumping() && maddy.can_unduck() {
             if maddy.wall_jump_check(1) {
                 maddy.super_wall_jump(-1);
-                return State::Normal;
+                return State::StNormal;
             } else if maddy.wall_jump_check(-1) {
                 maddy.super_wall_jump(1);
-                return State::Normal;
+                return State::StNormal;
             }
         }
     } else {
         if maddy.input.jumping() && maddy.can_unduck() {
             if maddy.wall_jump_check(1) {
                 maddy.wall_jump(-1);
-                return State::Normal;
+                return State::StNormal;
             } else if maddy.wall_jump_check(-1) {
                 maddy.wall_jump(1);
-                return State::Normal;
+                return State::StNormal;
             }
         }
     }
     
-    State::Dash
+    State::StDash
 }
 
 fn update_swim(maddy: &mut Madeline, delta_time: f32) -> State {
     if !maddy.swim_check() {
-        return State::Normal;
+        return State::StNormal;
     }
 
     if maddy.can_unduck() {
@@ -1374,7 +1374,7 @@ fn update_swim(maddy: &mut Madeline, delta_time: f32) -> State {
 
     if maddy.can_dash() {
         maddy.input.dash_consumed = true;
-        return State::Dash;
+        return State::StDash;
     }
 
     let underwater = maddy.swim_underwater_check();
@@ -1386,7 +1386,7 @@ fn update_swim(maddy: &mut Madeline, delta_time: f32) -> State {
         && !maddy.CLST_MoveV(-1., false)
     {
         maddy.set_ducking(false);
-        return State::Climb;
+        return State::StClimb;
     }
 
     let move_vec = maddy.input.get_aim_vector(maddy.facing as i8, false);
@@ -1419,8 +1419,8 @@ fn update_swim(maddy: &mut Madeline, delta_time: f32) -> State {
 
     if maddy.input.jumping() && maddy.swim_jump_check() {
         maddy.jump(false, false);
-        return State::Normal;
+        return State::StNormal;
     }
 
-    State::Swim
+    State::StSwim
 }

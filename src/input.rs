@@ -4,17 +4,17 @@ use crate::Vector2;
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum RumbleStrength {
     #[default]
-    Light,
-    Medium,
-    Strong,
+    StrLight,
+    StrMedium,
+    StrStrong,
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum RumbleLength {
     #[default]
-    Short,
-    Medium,
+    LenShort,
+    LenMedium,
 }
 
 #[repr(C)]

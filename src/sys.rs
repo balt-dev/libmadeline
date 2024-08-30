@@ -5,9 +5,9 @@ use crate::constants::{CLIMB_MAX_STAMINA, MAX_DASHES};
 #[repr(i8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum Facings {
-    Left = -1,
+    FacingLeft = -1,
     #[default]
-    Right = 1
+    FacingRight = 1
 }
 
 #[repr(C)]

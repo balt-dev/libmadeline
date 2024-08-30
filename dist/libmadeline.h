@@ -47,15 +47,15 @@ namespace celeste {
 #endif  // __cplusplus
 
 typedef enum CLST_DashCollisionResults {
-    Ignore,
-    Rebound,
-    Bounce,
+    ResIgnore,
+    ResRebound,
+    ResBounce,
 } CLST_DashCollisionResults;
 
 typedef enum CLST_DashCoroutineBreakpoint {
-    Start,
-    __1,
-    __2,
+    BreakpointStart,
+    Breakpoint1,
+    Breakpoint2,
 } CLST_DashCoroutineBreakpoint;
 
 enum CLST_Facings
@@ -63,29 +63,29 @@ enum CLST_Facings
   : int8_t
 #endif // __cplusplus
  {
-    Left = -1,
-    Right = 1,
+    FacingLeft = -1,
+    FacingRight = 1,
 };
 #ifndef __cplusplus
 typedef int8_t CLST_Facings;
 #endif // __cplusplus
 
 typedef enum CLST_RumbleLength {
-    Short,
-    Medium,
+    LenShort,
+    LenMedium,
 } CLST_RumbleLength;
 
 typedef enum CLST_RumbleStrength {
-    Light,
-    Medium,
-    Strong,
+    StrLight,
+    StrMedium,
+    StrStrong,
 } CLST_RumbleStrength;
 
 typedef enum CLST_State {
-    Normal,
-    Climb,
-    Dash,
-    Swim,
+    StNormal,
+    StClimb,
+    StDash,
+    StSwim,
 } CLST_State;
 
 typedef struct CLST_Vector2 {
