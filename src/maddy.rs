@@ -112,11 +112,12 @@ pub struct Madeline {
     /// A callback to call when moving Madeline.
     /// This takes in an amount to move her in the X direction,
     /// and should return a corrected amount that makes her not clip into anything.
-    pub move_h_callback: Option<extern "C" fn(&Self, f32) -> f32>,
+    pub move_h_callback: Option<extern "C" fn(&Self, &mut f32) -> bool>,
     /// A callback to call when moving Madeline.
     /// This takes in an amount to move her in the Y direction,
-    /// and should return a corrected amount that makes her not clip into anything.
-    pub move_v_callback: Option<extern "C" fn(&Self, f32) -> f32>,
+    /// and should change that amount to make her not clip into anything,
+    /// returning a boolean that says whether she hit anything.
+    pub move_v_callback: Option<extern "C" fn(&Self, &mut f32) -> bool>,
     /// A callback to call to determine a friction factor.
     /// Returning 0 means no friction, and returning 1 means full friction. 
     /// If unset, this will default to 1.
@@ -477,9 +478,7 @@ impl Madeline {
     pub extern "C" fn CLST_MoveH(&mut self, mut amount: f32, call_back: bool) -> bool {
         let mut hit = false;
         if let Some(callback) = self.move_h_callback {
-            let new_amount = callback(self, amount);
-            hit = new_amount != amount;
-            amount = new_amount;
+            hit = callback(self, &mut amount);
         }
         self.position.x += amount;
         if call_back && hit {
@@ -536,9 +535,7 @@ impl Madeline {
     pub extern "C" fn CLST_MoveV(&mut self, mut amount: f32, call_back: bool) -> bool {
         let mut hit = false;
         if let Some(callback) = self.move_v_callback {
-            let new_amount = callback(self, amount);
-            hit = new_amount != amount;
-            amount = new_amount;
+            hit = callback(self, &mut amount);
         }
         self.position.y += amount;
         if call_back && hit {
@@ -942,9 +939,6 @@ impl Madeline {
         res
     }
 }
-
-
-
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 #[repr(C)]
