@@ -136,7 +136,7 @@ namespace celeste {
 
 #define CLST_CLIMB_NO_MOVE_TIME 0.1
 
-#define CLST_CLIMB_UP_SPEED -45.
+#define CLST_CLIMB_UP_SPEED -55.
 
 #define CLST_CLIMB_DOWN_SPEED 80.
 
@@ -348,6 +348,7 @@ typedef struct CLST_Madeline {
      */
     struct CLST_Vector2 lift_speed;
     float time_active;
+    struct CLST_Vector2 sprite_scale;
     float coroutine_timer;
     enum CLST_DashCoroutineBreakpoint dash_coroutine_breakpoint;
     struct CLST_Vector2 position;

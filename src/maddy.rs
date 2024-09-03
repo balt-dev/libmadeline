@@ -1,9 +1,4 @@
-/// Don't look at the source code. It's not worth it.
-
-// how the fuck did you write this,
-// in C#,
-// without going insane
-// holy fucking spaghetti code.
+/// Pain.
 
 use std::{cmp::Ordering, ffi};
 
@@ -97,6 +92,8 @@ pub struct Madeline {
     /// Make sure you set this when Madeline is on top of a moving object!
     pub lift_speed: Vector2,
     pub time_active: f32,
+
+    sprite_scale: Vector2,
     
     coroutine_timer: f32,
     dash_coroutine_breakpoint: DashCoroutineBreakpoint,
@@ -188,6 +185,7 @@ impl Madeline {
         this.max_dashes = MAX_DASHES;
         this.just_respawned = true;
         this.hair_color = Color::NORMAL_HAIR;
+        this.sprite_scale = Vector2::ONE;
         this.highest_air_y = position.y;
 
         Box::into_raw(this)
@@ -231,6 +229,8 @@ impl Madeline {
         self.input.refresh();
         self.time_active += delta_time;
         self.state.update(self, delta_time);
+        self.sprite_scale.x = self.sprite_scale.x.approach(1., 1.75 * delta_time);
+        self.sprite_scale.y = self.sprite_scale.y.approach(1., 1.75 * delta_time);
 
         // vars
         self.idle_timer += delta_time;
@@ -511,6 +511,9 @@ impl Madeline {
         self.rem_position.x += amount;
         // Subpixels seem to be stored separately? This is mostly just guesswork
         // That would make sense, looking at the PICO-8 player code
+        // Also for some reason backwards movement was broken until I made it tie to even. 
+        // Or maybe that was something else.
+        // Okay I guess??
         let rounded_x = self.rem_position.x.round_ties_even();
         if rounded_x != 0. {
             self.rem_position.x -= rounded_x;
@@ -608,6 +611,10 @@ impl Madeline {
 
             if self.state != State::StClimb {                    
                 self.rumble(RumbleStrength::StrLight, RumbleLength::LenShort);
+
+                let squish = (self.speed.y / FAST_MAX_FALL).min(1.);
+                self.sprite_scale.x = self.sprite_scale.x.lerp(1.6, squish);
+                self.sprite_scale.y = self.sprite_scale.y.lerp(0.4, squish);
             }
         } else if self.speed.y < 0. {
             if self.speed.x <= 0. {
@@ -722,6 +729,8 @@ impl Madeline {
         self.speed += self.lift_boost();
         self.var_jump_speed = self.speed.y;
 
+        self.sprite_scale = Vector2::new(0.6, 1.4);
+
         if play_sfx {
             self.play_sound(c"char_mad_jump");
         }
@@ -747,6 +756,7 @@ impl Madeline {
             self.speed.x *= DUCK_SUPER_JUMP_X_MULT;
             self.speed.y *= DUCK_SUPER_JUMP_Y_MULT;
         }
+        self.sprite_scale = Vector2::new(0.6, 1.4);
 
         self.var_jump_speed = self.speed.y;
     }
@@ -773,6 +783,7 @@ impl Madeline {
         self.speed.y = JUMP_SPEED;
         self.speed += self.lift_boost();
         self.var_jump_speed = self.speed.y;
+        self.sprite_scale = Vector2::new(0.6, 1.4);
 
         self.play_sound(c"char_mad_jump_wall")
     }
@@ -787,6 +798,7 @@ impl Madeline {
         self.wall_slide_timer = WALL_SLIDE_TIME;
         self.wall_boost_timer = 0.;
 
+        self.sprite_scale = Vector2::new(0.6, 1.4);
         
         self.speed.x = SUPER_WALL_JUMP_H * dir as f32;
         self.speed.y = SUPER_WALL_JUMP_SPEED;
@@ -1100,6 +1112,7 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
         if maddy.on_ground && maddy.input.aim.y < maddy.input.deadzone.y {
             if maddy.can_unduck() {
                 maddy.set_ducking(false);
+                maddy.sprite_scale = Vector2::new(0.8, 1.2);
             } else if maddy.speed.x == 0. {
                 for i in (1..=DUCK_CORRECT_CHECK).rev() {
                     if maddy.can_unduck_at(maddy.position + Vector2::UNIT_X * i as f32) {
@@ -1114,6 +1127,7 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
         }
     } else if maddy.on_ground && maddy.input.aim.y >= maddy.input.deadzone.y && maddy.speed.y >= 0. {
         maddy.set_ducking(true);
+        maddy.sprite_scale = Vector2::new(1.4, 0.6);
     }
 
     if maddy.ducking() && maddy.on_ground {
@@ -1133,6 +1147,15 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
         maddy.max_fall = maddy.max_fall.approach(FAST_MAX_FALL, FAST_MAX_ACCEL * delta_time);
     } else {
         maddy.max_fall = maddy.max_fall.approach(MAX_FALL, FAST_MAX_ACCEL);
+    }
+
+    let between_fall = MAX_FALL.lerp(FAST_MAX_FALL, 0.5);
+    if maddy.input.aim.y > maddy.input.deadzone.y
+        && maddy.speed.y > between_fall
+    {
+        let sprite_lerp = 1f32.min((maddy.speed.y - between_fall) / (FAST_MAX_FALL - between_fall));
+        maddy.sprite_scale.x = 1f32.lerp(0.5, sprite_lerp);
+        maddy.sprite_scale.y = 1f32.lerp(1.5, sprite_lerp);
     }
 
     if !maddy.on_ground {
@@ -1270,7 +1293,7 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
         } else if maddy.input.aim.y <= -maddy.input.deadzone.y {
             target = CLIMB_UP_SPEED;
 
-            /*if maddy.collide(maddy.position - Vector2::UNIT_Y)
+            if maddy.collide(maddy.position - Vector2::UNIT_Y)
                 || (
                     maddy.collide(maddy.position - Vector2::UNIT_Y * 6.) &&
                     maddy.slip_check(-1.)
@@ -1279,7 +1302,7 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
                 maddy.speed.y = maddy.speed.y.max(0.);
                 target = 0.;
                 try_slip = true;
-            } else if maddy.slip_check(0.) {
+            }/*  else if maddy.slip_check(0.) {
                 maddy.climb_hop();
                 return State::StNormal;
             }*/
@@ -1303,7 +1326,6 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
         target = CLIMB_SLIP_SPEED;
     }
 
-    eprintln!("{target}");
     maddy.speed.y = maddy.speed.y.approach(target, CLIMB_ACCEL * delta_time);
 
     if 

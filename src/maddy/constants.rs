@@ -63,7 +63,9 @@ pub const CLIMB_CHECK_DIST: f32 = 2.;
 pub const CLIMB_UP_CHECK_DIST: i32 = 2;
 pub const CLIMB_GRAB_Y_MULT: f32 = 0.2;
 pub const CLIMB_NO_MOVE_TIME: f32 = 0.1;
-pub const CLIMB_UP_SPEED: f32 = -45.;
+// FIXME: This should be -45.
+// but for some reason climbing breaks entirely if it is
+pub const CLIMB_UP_SPEED: f32 = -55.;
 pub const CLIMB_DOWN_SPEED: f32 = 80.;
 pub const CLIMB_SLIP_SPEED: f32 = 30.;
 pub const CLIMB_ACCEL: f32 = 900.;

@@ -11,11 +11,15 @@ meaning that _this will not run your TAS'es,_ sorry to say - this is more meant 
 
 Also, climbhopping is unimplemented
 because it's janky and annoying and really hard to get right.
-You instead do a climb jump without spending stamina for it.
+
+You instead do a climb jump without spending stamina for it with some extra speed added towards the wall you hopped from.
+
+
 
 That being said, all movement tech that doesn't depend on these does work (to my knowledge)!
 You can go and do your chained ultras and reverse supers and all that jazz all you want.
 
+Note that I'm not perfect, and there are a few bugs that I either don't know about, or can't figure out how to fix. PRs are welcome!
 
 ## Usage
 
@@ -29,6 +33,11 @@ When you are done with it, pass it to `CLST_Drop`, which will safely discard it.
 
 In order to update Madeline's state, set the `input` field as needed according to player input,
 and then call `CLST_Tick` with the elapsed time since the last tick.
+
+Note that setting `Madeline.position` to non-integer values
+may cause undesired behavior - for whatever reason, the game
+stores the integer and fractional parts of the position separately.
+You can find the fractional part of the position in `rem_position`, but take care to keep this in the range of `-0.5, 0.5`.
 
 ## Celeste's licensing
 
@@ -69,6 +78,3 @@ Said license can be found in the LICENSE file at the root of this repository.
 ---
 
 _Made with love by baltdev_
-
-
-

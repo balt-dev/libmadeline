@@ -1,3 +1,8 @@
 /target
 Player.cs
 Cargo.lock
+
+demo/*
+
+!demo/main.c
+!demo/*.bmp
