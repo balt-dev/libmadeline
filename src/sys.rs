@@ -20,38 +20,19 @@ pub struct Color {
 }
 
 impl Color {
-    pub const WHITE: Color = Color::CLST_ColorFromU32(0xFFFF_FFFF);
-    pub const RED: Color = Color::CLST_ColorFromU32(0xFF00_00FF);
-    pub const NORMAL_HAIR: Color = Color::CLST_ColorFromU32(0xAC3232FF);
-    pub const FLY_POWER_HAIR: Color = Color::CLST_ColorFromU32(0xF2EB6DFF);
-    pub const USED_HAIR: Color = Color::CLST_ColorFromU32(0x44B7FF);
+    pub const WHITE: Color = Color { r: 0xFF, g: 0xFF, b: 0xFF, a: 0xFF };
+    pub const RED: Color = Color { r: 0xFF, g: 0x00, b: 0x00, a: 0xFF };
+    pub const NORMAL_HAIR: Color = Color { r: 0xAC, g: 0x32, b: 0x32, a: 0xFF };
+    pub const FLY_POWER_HAIR: Color = Color { r: 0xF2, g: 0xEB, b: 0x6D, a: 0xFF };
+    pub const USED_HAIR: Color = Color { r: 0x00, g: 0x44, b: 0xB7, a: 0xFF };
     pub const FLASH_HAIR: Color = Self::WHITE;
-    pub const TWO_DASHES_HAIR: Color = Color::CLST_ColorFromU32(0xFF6DEFFF);
-    pub const TRANSPARENT: Color = Color::CLST_ColorFromU32(0);
+    pub const TWO_DASHES_HAIR: Color = Color { r: 0xFF, g: 0x6D, b: 0xEF, a: 0xFF };
+    pub const TRANSPARENT: Color = Color { r: 0, g: 0, b: 0, a: 0 };
 }
 
 impl Display for Color {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "#{:02X}{:02X}{:02X}{:02X}", self.r, self.g, self.b, self.a)
-    }
-}
-
-impl Color {
-    #[no_mangle]
-    pub const extern "C" fn CLST_NewColor(r: u8, g: u8, b: u8, a: u8) -> Self {
-        Self {
-            r, g, b, a
-        }
-    }
-
-    #[no_mangle]
-    pub const extern "C" fn CLST_ColorFromU32(rgba: u32) -> Self {
-        Self {
-            r: (rgba >> 24) as u8,
-            g: (rgba >> 16) as u8,
-            b: (rgba >> 8) as u8,
-            a: rgba as u8
-        }
     }
 }
 

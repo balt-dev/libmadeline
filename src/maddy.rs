@@ -176,7 +176,10 @@ impl Madeline {
     ) -> *mut Self {
         let mut this = Box::<Self>::default();
         
-        this.position = position;
+        this.position = Vector2::new(
+            position.x.floor(),
+            position.y.floor()
+        );
         this.collider = NORMAL_HITBOX;
         this.hurtbox = NORMAL_HURTBOX;
         this.dashes = MAX_DASHES;
@@ -226,8 +229,8 @@ impl Madeline {
     /// Ticks Madeline's internal state, using the delta-time between the last tick.
     pub extern "C" fn CLST_Tick(&mut self, delta_time: f32) {
         self.input.refresh();
-
         self.time_active += delta_time;
+        self.state.update(self, delta_time);
 
         // vars
         self.idle_timer += delta_time;
@@ -350,8 +353,6 @@ impl Madeline {
             self.was_tired = true;
         }
 
-        self.state.update(self, delta_time);
-
         if !self.on_ground && self.dash_attacking() && self.dash_dir.y == 0. {
             if self.collide(self.position + Vector2::UNIT_Y * DASH_V_FLOOR_SNAP_DIST) {
                 self.CLST_MoveVExact(DASH_V_FLOOR_SNAP_DIST as i32, false);
@@ -431,6 +432,18 @@ impl Madeline {
     }
     
     fn collide(&self, position: Vector2) -> bool {
+        let pos = position + self.collider.position;
+        for i in 0..self.collider.size.x as i32 {
+            for j in 0..self.collider.size.y as i32 {
+                if self.scene_collide(pos + Vector2::new(i as f32, j as f32)) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn scene_collide(&self, position: Vector2) -> bool {
         self.collision_callback
             .map_or(
                 false, 
@@ -444,7 +457,7 @@ impl Madeline {
             Facings::FacingLeft => self.collider.top_left() - Vector2::UNIT_X + Vector2::UNIT_Y * (4. + add_y)
         };
 
-        !self.collide(at) && !self.collide(at + Vector2::UNIT_Y * (-4. + add_y))
+        !self.scene_collide(self.position + at) && !self.scene_collide(self.position + at + Vector2::UNIT_Y * (-4. + add_y))
     }
 
     fn on_interval(&self, interval: f32, delta_time: f32) -> bool {
@@ -461,16 +474,16 @@ impl Madeline {
         let step = amount.signum();
         while move_amount != amount {
             move_amount += step;
+            if self.collide(self.position + Vector2::UNIT_X * step as f32) {
+                self.rem_position.x = 0.;
 
-            if self.collide(self.position + Vector2::UNIT_X * move_amount as f32) {
-                self.position.x += move_amount as f32;
                 if callback {
                     self.on_collide_h();
                 }
                 return true;
             }
+            self.position.x += step as f32;
         }
-        self.position.x += amount as f32;
         false
     }
 
@@ -480,16 +493,15 @@ impl Madeline {
         let step = amount.signum();
         while move_amount != amount {
             move_amount += step;
-
-            if self.collide(self.position + Vector2::UNIT_Y * move_amount as f32) {
-                self.position.y += move_amount as f32;
+            if self.collide(self.position + Vector2::UNIT_Y * step as f32) {
+                self.rem_position.y = 0.;
                 if callback {
                     self.on_collide_v();
                 }
                 return true;
             }
+            self.position.y += step as f32;
         }
-        self.position.y += amount as f32;
         false
     }
 
@@ -499,7 +511,7 @@ impl Madeline {
         self.rem_position.x += amount;
         // Subpixels seem to be stored separately? This is mostly just guesswork
         // That would make sense, looking at the PICO-8 player code
-        let rounded_x = self.rem_position.x.round();
+        let rounded_x = self.rem_position.x.round_ties_even();
         if rounded_x != 0. {
             self.rem_position.x -= rounded_x;
             self.CLST_MoveHExact(amount as i32, callback)
@@ -509,7 +521,8 @@ impl Madeline {
     #[no_mangle]
     /// Moves Madeline on the Y axis.
     pub extern "C" fn CLST_MoveV(&mut self, amount: f32, callback: bool) -> bool {
-        let rounded_y = self.rem_position.y.round();
+        self.rem_position.y += amount;
+        let rounded_y = self.rem_position.y.round_ties_even();
         if rounded_y != 0. {
             self.rem_position.y -= rounded_y;
             self.CLST_MoveVExact(amount as i32, callback)
@@ -566,7 +579,7 @@ impl Madeline {
             return true;
         }
 
-        if self.dash_attacking() {
+        'a: { if self.dash_attacking() {
             if let Some(cb) = self.dash_collision_callback {
                 let res = cb(self, self.dash_dir);
                 match res {
@@ -577,11 +590,11 @@ impl Madeline {
                         )),
                     DashCollisionResults::ResRebound =>
                         self.rebound(0),
-                    DashCollisionResults::ResIgnore => ()
+                    DashCollisionResults::ResIgnore => break 'a
                 }
                 return true;
             }
-        }
+        } }
 
         if self.speed.y > 0. {
             if self.dash_dir.x != 0. && self.dash_dir.y > 0. && self.speed.y > 0. {
@@ -620,6 +633,9 @@ impl Madeline {
             }
         }
 
+        self.speed.y = 0.;
+        self.dash_attack_timer = 0.;
+
         false
     }
 
@@ -637,11 +653,11 @@ impl Madeline {
     }
 
     fn swim_jump_check(&self) -> bool {
-        self.collide_water(self.position + Vector2::UNIT_Y * -14.0)
+        !self.collide_water(self.position + Vector2::UNIT_Y * -14.0)
     }
 
     fn swim_rise_check(&self) -> bool {
-        self.collide_water(self.position + Vector2::UNIT_Y * -18.0)
+        !self.collide_water(self.position + Vector2::UNIT_Y * -18.0)
     }
 
     fn swim_underwater_check(&self) -> bool {
@@ -662,7 +678,7 @@ impl Madeline {
         } else {
             let prev = self.collider;
             self.collider = NORMAL_HITBOX;
-            let res = self.collide(self.position);
+            let res = !self.collide(self.position);
             self.collider = prev;
             res
         }
@@ -785,6 +801,7 @@ impl Madeline {
         if !self.on_ground {
             self.stamina += CLIMB_JUMP_COST;
         }
+        self.speed.x = self.facing as i8 as f32 * CLIMB_HOP_X;
         self.climb_jump();
     }
 
@@ -801,7 +818,7 @@ impl Madeline {
             self.wall_boost_timer = CLIMB_JUMP_BOOST_TIME;
         }
 
-        self.play_sound(c"char_mad_jump_climc")
+        self.play_sound(c"char_mad_jump_climb")
     }
 
     fn rebound(&mut self, dir: i8) {
@@ -874,12 +891,12 @@ impl Madeline {
         self.state.begin(self);
     }
 
-    fn climb_check(&self, add_y: f32) -> bool {
+    fn climb_check(&self, direction: i8, add_y: f32) -> bool {
         self.can_climb_at(
-            Vector2::new(self.facing as i8 as f32 * CLIMB_CHECK_DIST, add_y)
+            Vector2::new(direction as f32 * CLIMB_CHECK_DIST, add_y)
         ) && self.collide(
             self.position + Vector2::new(
-                self.facing as i8 as f32 * CLIMB_CHECK_DIST,
+                direction as f32 * CLIMB_CHECK_DIST,
                 add_y
             )
         )
@@ -1051,10 +1068,10 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
         maddy.speed.y = maddy.lift_boost().y;
     }
 
-    if maddy.input.grabbing() && !maddy.is_tired() && !maddy.ducking()
+    if maddy.input.grab && !maddy.is_tired() && !maddy.ducking()
         && maddy.speed.y >= 0. && maddy.speed.x.signum() as i8 != -(maddy.facing as i8)
     {
-        if maddy.climb_check(0.) {
+        if maddy.climb_check(maddy.facing as i8, 0.) {
             maddy.set_ducking(false);
             return State::StClimb;
         }
@@ -1062,7 +1079,7 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
         if maddy.input.aim.y < maddy.input.deadzone.y {
             for i in 1..=CLIMB_UP_CHECK_DIST {
                 if !maddy.collide(maddy.position + Vector2::UNIT_Y * -i as f32)
-                    && maddy.climb_check(-i as f32)
+                    && maddy.climb_check(maddy.facing as i8, -i as f32)
                 {
                     maddy.CLST_MoveVExact(-i, false);
                     maddy.set_ducking(false);
@@ -1152,7 +1169,7 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
     }
 
     if maddy.var_jump_timer > 0. {
-        if maddy.auto_jump || maddy.input.jumping() {
+        if maddy.auto_jump || maddy.input.jump {
             maddy.speed.y = maddy.speed.y
                 .min(maddy.var_jump_speed);
         } else {
@@ -1231,7 +1248,7 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
         return State::StDash;
     }
 
-    if !maddy.input.grabbing() {
+    if !maddy.input.grab {
         maddy.speed += maddy.lift_boost();
         return State::StNormal;
     }
@@ -1253,8 +1270,11 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
         } else if maddy.input.aim.y <= -maddy.input.deadzone.y {
             target = CLIMB_UP_SPEED;
 
-            if maddy.collide(maddy.position - Vector2::UNIT_Y)
-                || maddy.slip_check(-1.)
+            /*if maddy.collide(maddy.position - Vector2::UNIT_Y)
+                || (
+                    maddy.collide(maddy.position - Vector2::UNIT_Y * 6.) &&
+                    maddy.slip_check(-1.)
+                )
             {
                 maddy.speed.y = maddy.speed.y.max(0.);
                 target = 0.;
@@ -1262,7 +1282,7 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
             } else if maddy.slip_check(0.) {
                 maddy.climb_hop();
                 return State::StNormal;
-            }
+            }*/
         } else if maddy.input.aim.y >= maddy.input.deadzone.y {
             target = CLIMB_DOWN_SPEED;
 
@@ -1283,10 +1303,11 @@ fn update_climb(maddy: &mut Madeline, delta_time: f32) -> State {
         target = CLIMB_SLIP_SPEED;
     }
 
+    eprintln!("{target}");
     maddy.speed.y = maddy.speed.y.approach(target, CLIMB_ACCEL * delta_time);
 
     if 
-        maddy.input.aim.y < maddy.input.deadzone.y
+        maddy.input.aim.y > maddy.input.deadzone.y
         && maddy.speed.y > 0.
         && !maddy.collide(maddy.position + Vector2::new(maddy.facing as i8 as f32, 1.))
     {
@@ -1339,7 +1360,7 @@ fn update_dash(maddy: &mut Madeline, delta_time: f32) -> State {
     // Superjumping
     if maddy.dash_dir.y == 0.
         && maddy.can_unduck()
-        && maddy.input.jumping()
+        && maddy.input.jump
         && maddy.jump_grace_timer > 0.
     {
         maddy.super_jump();
@@ -1348,7 +1369,7 @@ fn update_dash(maddy: &mut Madeline, delta_time: f32) -> State {
 
     // Wouncing :3
     if maddy.dash_dir.x == 0. && maddy.dash_dir.y == -1. {
-        if maddy.input.jumping() && maddy.can_unduck() {
+        if maddy.input.jump && maddy.can_unduck() {
             if maddy.wall_jump_check(1) {
                 maddy.super_wall_jump(-1);
                 return State::StNormal;
@@ -1358,7 +1379,7 @@ fn update_dash(maddy: &mut Madeline, delta_time: f32) -> State {
             }
         }
     } else {
-        if maddy.input.jumping() && maddy.can_unduck() {
+        if maddy.input.jump && maddy.can_unduck() {
             if maddy.wall_jump_check(1) {
                 maddy.wall_jump(-1);
                 return State::StNormal;
@@ -1391,14 +1412,14 @@ fn update_swim(maddy: &mut Madeline, delta_time: f32) -> State {
     if !underwater && maddy.speed.y >= 0. && maddy.input.grabbing()
         && !maddy.is_tired() && maddy.can_unduck()
         && maddy.speed.x.signum() != maddy.facing as i8 as f32
-        && maddy.climb_check(0.)
+        && maddy.climb_check(maddy.facing as i8, 0.)
         && !maddy.CLST_MoveVExact(-1, false)
     {
         maddy.set_ducking(false);
         return State::StClimb;
     }
 
-    let move_vec = maddy.input.get_aim_vector(maddy.facing as i8, false);
+    let move_vec = maddy.input.aim;
 
     let max_x = if underwater { SWIM_UNDERWATER_MAX } else { SWIM_MAX };
     let max_y = SWIM_MAX;
@@ -1411,7 +1432,7 @@ fn update_swim(maddy: &mut Madeline, delta_time: f32) -> State {
 
     if move_vec.y == 0. && maddy.swim_rise_check() {
         maddy.speed.y = maddy.speed.y.approach(SWIM_MAX_RISE, SWIM_ACCEL * delta_time);
-    } else if move_vec.y >= 0. && maddy.swim_underwater_check() {
+    } else if move_vec.y >= 0. || maddy.swim_underwater_check() {
         if maddy.speed.y.abs() > SWIM_MAX && maddy.speed.y.signum() == move_vec.y.signum() {
             maddy.speed.y = maddy.speed.y.approach(max_y * move_vec.y, SWIM_REDUCE * delta_time);
         } else {
@@ -1426,7 +1447,7 @@ fn update_swim(maddy: &mut Madeline, delta_time: f32) -> State {
         maddy.climb_hop();
     }
 
-    if maddy.input.jumping() && maddy.swim_jump_check() {
+    if maddy.input.jump && maddy.swim_jump_check() {
         maddy.jump(false, false);
         return State::StNormal;
     }

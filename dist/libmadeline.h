@@ -46,6 +46,144 @@ Have fun you dork <3
 namespace celeste {
 #endif  // __cplusplus
 
+#define CLST_MAX_RUN 90.
+
+#define CLST_RUN_ACCEL 1000.
+
+#define CLST_RUN_REDUCE 400.
+
+#define CLST_AIR_MULT 0.65
+
+#define CLST_JUMP_GRACE_TIME 0.1
+
+#define CLST_JUMP_SPEED -105.
+
+#define CLST_JUMP_H_BOOST 40.
+
+#define CLST_VAR_JUMP_TIME 0.2
+
+#define CLST_CEILING_VAR_JUMP_GRACE 0.05
+
+#define CLST_UPWARD_CORNER_CORRECTION 4
+
+#define CLST_WALL_SPEED_RETENTION_TIME 0.06
+
+#define CLST_WALL_JUMP_CHECK_DIST 3.
+
+#define CLST_WALL_JUMP_FORCE_TIME 0.16
+
+#define CLST_WALL_JUMP_H_SPEED (CLST_MAX_RUN + CLST_JUMP_H_BOOST)
+
+#define CLST_WALL_SLIDE_TIME 1.2
+
+#define CLST_WALL_SLIDE_START_MAX 20.
+
+#define CLST_MAX_DASHES 1
+
+#define CLST_CLIMB_MAX_STAMINA 110.
+
+#define CLST_CLIMB_UP_COST (100. / 2.2)
+
+#define CLST_CLIMB_STILL_COST 10.
+
+#define CLST_CLIMB_JUMP_COST (CLST_CLIMB_MAX_STAMINA / 4.)
+
+#define CLST_CLIMB_TIRED_THRESHOLD 20.
+
+#define CLST_DASH_V_FLOOR_SNAP_DIST 3.
+
+#define CLST_LIFT_X_CAP 250.
+
+#define CLST_LIFT_Y_CAP -130.
+
+#define CLST_SUPER_JUMP_H 260.
+
+#define CLST_DUCK_SUPER_JUMP_X_MULT 1.25
+
+#define CLST_DUCK_SUPER_JUMP_Y_MULT 0.5
+
+#define CLST_SUPER_WALL_JUMP_VAR_TIME 0.25
+
+#define CLST_SUPER_WALL_JUMP_H (CLST_MAX_RUN + (CLST_JUMP_H_BOOST * 2.))
+
+#define CLST_SUPER_WALL_JUMP_SPEED -160.
+
+#define CLST_CLIMB_JUMP_BOOST_TIME 0.2
+
+#define CLST_REBOUND_SPEED_X 140.
+
+#define CLST_REBOUND_SPEED_Y -120.
+
+#define CLST_REBOUND_VAR_JUMP_TIME 0.15
+
+#define CLST_REFLECT_BOUND_SPEED 220.
+
+#define CLST_DASH_CORNER_CORRECTION 4
+
+#define CLST_DODGE_SLIDE_SPEED_MULT 1.2
+
+#define CLST_FAST_MAX_FALL 240.
+
+#define CLST_MAX_FALL 160.
+
+#define CLST_FAST_MAX_ACCEL 300.
+
+#define CLST_CLIMB_CHECK_DIST 2.
+
+#define CLST_CLIMB_UP_CHECK_DIST 2
+
+#define CLST_CLIMB_GRAB_Y_MULT 0.2
+
+#define CLST_CLIMB_NO_MOVE_TIME 0.1
+
+#define CLST_CLIMB_UP_SPEED -45.
+
+#define CLST_CLIMB_DOWN_SPEED 80.
+
+#define CLST_CLIMB_SLIP_SPEED 30.
+
+#define CLST_CLIMB_ACCEL 900.
+
+#define CLST_CLIMB_HOP_X 100.
+
+#define CLST_DUCK_CORRECT_CHECK 4
+
+#define CLST_DUCK_CORRECT_SLIDE 50.
+
+#define CLST_DUCK_FRICTION 500.
+
+#define CLST_HALF_GRAV_THRESHOLD 40.
+
+#define CLST_GRAVITY 900.
+
+#define CLST_DASH_COOLDOWN 0.2
+
+#define CLST_DASH_REFILL_COOLDOWN 0.1
+
+#define CLST_DASH_ATTACK_TIME 0.3
+
+#define CLST_DASH_SPEED 240.
+
+#define CLST_SWIM_DASH_SPEED_MULT 0.75
+
+#define CLST_DASH_TIME 0.15
+
+#define CLST_END_DASH_SPEED 160.
+
+#define CLST_END_DASH_UP_MULT 0.75
+
+#define CLST_SWIM_Y_SPEED_MULT 0.5
+
+#define CLST_SWIM_MAX_RISE -60.
+
+#define CLST_SWIM_MAX 80.
+
+#define CLST_SWIM_UNDERWATER_MAX 60.
+
+#define CLST_SWIM_ACCEL 600.
+
+#define CLST_SWIM_REDUCE 400.
+
 typedef enum CLST_DashCollisionResults {
     ResIgnore,
     ResRebound,
@@ -135,7 +273,14 @@ typedef struct CLST_Color {
     uint8_t b;
     uint8_t a;
 } CLST_Color;
+#define CLST_Color_WHITE (CLST_Color){ .r = 255, .g = 255, .b = 255, .a = 255 }
+#define CLST_Color_RED (CLST_Color){ .r = 255, .g = 0, .b = 0, .a = 255 }
+#define CLST_Color_NORMAL_HAIR (CLST_Color){ .r = 172, .g = 50, .b = 50, .a = 255 }
+#define CLST_Color_FLY_POWER_HAIR (CLST_Color){ .r = 242, .g = 235, .b = 109, .a = 255 }
+#define CLST_Color_USED_HAIR (CLST_Color){ .r = 0, .g = 68, .b = 183, .a = 255 }
 #define CLST_Color_FLASH_HAIR CLST_Color_WHITE
+#define CLST_Color_TWO_DASHES_HAIR (CLST_Color){ .r = 255, .g = 109, .b = 239, .a = 255 }
+#define CLST_Color_TRANSPARENT (CLST_Color){ .r = 0, .g = 0, .b = 0, .a = 0 }
 
 /**
  * An instance of Madeline's movement controller.
@@ -188,20 +333,6 @@ typedef struct CLST_Madeline {
     enum CLST_DashCollisionResults (*dash_collision_callback)(const struct CLST_Madeline*,
                                                               struct CLST_Vector2);
     /**
-     * A callback to call when moving Madeline.
-     * This takes in an amount to move her in the X direction,
-     * and should change that amount to make her not clip into anything,
-     * returning a boolean that says whether she hit anything.
-     */
-    bool (*move_h_callback)(const struct CLST_Madeline*, float*);
-    /**
-     * A callback to call when moving Madeline.
-     * This takes in an amount to move her in the Y direction,
-     * and should change that amount to make her not clip into anything,
-     * returning a boolean that says whether she hit anything.
-     */
-    bool (*move_v_callback)(const struct CLST_Madeline*, float*);
-    /**
      * A callback to call to determine a friction factor.
      * Returning 0 means no friction, and returning 1 means full friction.
      * If unset, this will default to 1.
@@ -220,6 +351,7 @@ typedef struct CLST_Madeline {
     float coroutine_timer;
     enum CLST_DashCoroutineBreakpoint dash_coroutine_breakpoint;
     struct CLST_Vector2 position;
+    struct CLST_Vector2 rem_position;
     struct CLST_Vector2 speed;
     struct CLST_Hitbox collider;
     struct CLST_Hitbox hurtbox;
@@ -311,9 +443,9 @@ void CLST_DropDebugString(char *char_);
  */
 void CLST_Tick(struct CLST_Madeline *self, float delta_time);
 
-bool CLST_MoveHExact(struct CLST_Madeline *self, float amount);
+bool CLST_MoveHExact(struct CLST_Madeline *self, int32_t amount, bool callback);
 
-bool CLST_MoveVExact(struct CLST_Madeline *self, float amount);
+bool CLST_MoveVExact(struct CLST_Madeline *self, int32_t amount, bool callback);
 
 /**
  * Moves Madeline on the X axis.
@@ -332,10 +464,6 @@ bool CLST_MoveV(struct CLST_Madeline *self, float amount, bool callback);
  * You should probably always use this instead of setting state directly.
  */
 void CLST_SetState(struct CLST_Madeline *self, enum CLST_State state);
-
-struct CLST_Color CLST_NewColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-
-struct CLST_Color CLST_ColorFromU32(uint32_t rgba);
 
 #ifdef __cplusplus
 }  // extern "C"
