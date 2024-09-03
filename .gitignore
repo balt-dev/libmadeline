@@ -8,3 +8,5 @@ demo/*
 !demo/*.bmp
 !demo/README.md
 !demo/Makefile
+
+dist/*
