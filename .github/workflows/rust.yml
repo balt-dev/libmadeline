@@ -17,6 +17,8 @@ jobs:
     - run: cargo build --release
     - uses: actions/upload-artifact@v4
       with:
+        name: windows
+        if-no-files-found: error
         path: target/release/mylibrary.dll
   build-macos:
     runs-on: macos-latest
@@ -24,8 +26,11 @@ jobs:
     - uses: actions/checkout@v4
     - run: rustup update
     - run: cargo build --release
+    - run: ls -R
     - uses: actions/upload-artifact@v4
       with:
+        name: macos
+        if-no-files-found: error
         path: target/release/mylibrary.so
   build-linux:
     runs-on: ubuntu-latest
@@ -33,6 +38,9 @@ jobs:
     - uses: actions/checkout@v4
     - run: rustup update
     - run: cargo build --release
+    - run: ls -R
     - uses: actions/upload-artifact@v4
       with:
+        name: linux
+        if-no-files-found: error
         path: target/release/mylibrary.so
