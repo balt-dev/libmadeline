@@ -5,7 +5,7 @@
 // without going insane
 // holy fucking spaghetti code.
 
-use std::cmp::Ordering;
+use std::{cmp::Ordering, ffi};
 
 use crate::{Color, Facings, Hitbox, Input, Inventory, RumbleLength, RumbleStrength, Vector2};
 
@@ -19,31 +19,6 @@ pub enum DashCollisionResults {
     ResIgnore,
     ResRebound,
     ResBounce
-}
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct CStaticStr {
-    pub ptr: *const u8,
-    pub len: usize
-}
-
-impl<const N: usize> From<&'static [u8; N]> for CStaticStr {
-    fn from(string: &'static [u8; N]) -> Self {
-        Self {
-            ptr: string.as_ptr(),
-            len: string.len()
-        }
-    }
-}
-
-impl From<&'static [u8]> for CStaticStr {
-    fn from(string: &'static [u8]) -> Self {
-        Self {
-            ptr: string.as_ptr(),
-            len: string.len()
-        }
-    }
 }
 
 trait FloatExt {
@@ -94,7 +69,10 @@ pub struct Madeline {
 
     /// A callback when sound is supposed to be played.
     /// These sounds can be mapped to whatever you want.
-    pub sound_callback: Option<extern "C" fn(CStaticStr)>,
+    /// 
+    /// Note that these sound names are not allocated, and are in fact pointers to static values!
+    /// You do not need to, and in fact should not, delete, free, or use CLST_DropDebugString on them.
+    pub sound_callback: Option<extern "C" fn(*const ffi::c_char)>,
     /// A callback for controller rumble.
     pub rumble_callback: Option<extern "C" fn(RumbleStrength, RumbleLength)>,
     /// A callback to run to see if a position is solid.
@@ -109,16 +87,6 @@ pub struct Madeline {
     /// A callback that's run when Madeline collides with a solid object while dashing.
     /// If unset, this will default to Ignore.
     pub dash_collision_callback: Option<extern "C" fn(&Self, Vector2) -> DashCollisionResults>,
-    /// A callback to call when moving Madeline.
-    /// This takes in an amount to move her in the X direction,
-    /// and should change that amount to make her not clip into anything,
-    /// returning a boolean that says whether she hit anything.
-    pub move_h_callback: Option<extern "C" fn(&Self, &mut f32) -> bool>,
-    /// A callback to call when moving Madeline.
-    /// This takes in an amount to move her in the Y direction,
-    /// and should change that amount to make her not clip into anything,
-    /// returning a boolean that says whether she hit anything.
-    pub move_v_callback: Option<extern "C" fn(&Self, &mut f32) -> bool>,
     /// A callback to call to determine a friction factor.
     /// Returning 0 means no friction, and returning 1 means full friction. 
     /// If unset, this will default to 1.
@@ -128,8 +96,6 @@ pub struct Madeline {
     /// The speed of the surface that Madeline is on.
     /// Make sure you set this when Madeline is on top of a moving object!
     pub lift_speed: Vector2,
-    /// Whether Madeline is on a surface that is moving.
-    pub is_riding: bool,
     pub time_active: f32,
     
     coroutine_timer: f32,
@@ -137,6 +103,7 @@ pub struct Madeline {
 
     // Actual fields
     position: Vector2,
+    rem_position: Vector2,
     speed: Vector2,
     collider: Hitbox,
     hurtbox: Hitbox,
@@ -232,6 +199,30 @@ impl Madeline {
     }
 
     #[no_mangle]
+    /// Gets a string representaiton of this object.
+    /// This should probably only be used for debugging.
+    /// 
+    /// **DO NOT DELETE OR FREE THE STRING.**
+    /// Instead, pass it to CLST_DropDebugString to safely deallocate it.
+    /// 
+    /// Along with this, do not alter the string before deallocating it.
+    pub extern "C" fn CLST_DebugString(&self) -> *mut ffi::c_char {
+        let string = ffi::CString::new(format!("{self:#?}"))
+            .expect("debug representation of struct should not have null byte");
+
+        string.into_raw()
+    }
+
+    #[no_mangle]
+    /// Safely deallocates a string obtained via CLST_DebugString.
+    /// 
+    /// Do not pass a string from sound_callback to this function! 
+    pub unsafe extern "C" fn CLST_DropDebugString(char: *mut ffi::c_char) {
+        let string = ffi::CString::from_raw(char);
+        std::mem::drop(string);
+    }
+
+    #[no_mangle]
     /// Ticks Madeline's internal state, using the delta-time between the last tick.
     pub extern "C" fn CLST_Tick(&mut self, delta_time: f32) {
         self.input.refresh();
@@ -320,7 +311,7 @@ impl Madeline {
             self.force_move_x_timer -= delta_time;
             self.move_x = self.force_move_x;
         } else {
-            self.move_x = self.input.aim.x.signum() as i8;
+            self.move_x = self.input.get_move_x();
         }
 
         // facing
@@ -363,7 +354,7 @@ impl Madeline {
 
         if !self.on_ground && self.dash_attacking() && self.dash_dir.y == 0. {
             if self.collide(self.position + Vector2::UNIT_Y * DASH_V_FLOOR_SNAP_DIST) {
-                self.CLST_MoveV(DASH_V_FLOOR_SNAP_DIST, false);
+                self.CLST_MoveVExact(DASH_V_FLOOR_SNAP_DIST as i32, false);
             }
         }
 
@@ -380,7 +371,7 @@ impl Madeline {
             if self.speed.y < 0. && self.speed.y >= SWIM_MAX_RISE {
                 while !self.swim_check() {
                     self.speed.y = 0.;
-                    if self.CLST_MoveV(1., false) {
+                    if self.CLST_MoveVExact(1, false) {
                         break;
                     }
                 }
@@ -393,9 +384,9 @@ impl Madeline {
         if ducking != self.was_ducking {
             self.was_ducking = ducking;
             if self.was_ducking {
-                self.play_sound(b"char_mad_duck");
+                self.play_sound(c"char_mad_duck");
             } else {
-                self.play_sound(b"char_mad_stand");
+                self.play_sound(c"char_mad_stand");
             }
         }
 
@@ -448,18 +439,6 @@ impl Madeline {
     }
 
     fn slip_check(&self, add_y: f32) -> bool {
-        /*
-        private bool SlipCheck(float addY = 0)
-        {
-            Vector2 at;
-            if (Facing == Facings.Right)
-                at = TopRight + Vector2.UnitY * (4 + addY);
-            else
-                at = TopLeft - Vector2.UnitX + Vector2.UnitY * (4 + addY);
-
-            return !Scene.CollideCheck<Solid>(at) && !Scene.CollideCheck<Solid>(at + Vector2.UnitY * (-4 + addY));
-        }
-         */
         let at = match self.facing {
             Facings::FacingRight => self.collider.top_right() + Vector2::UNIT_Y * (4. + add_y),
             Facings::FacingLeft => self.collider.top_left() - Vector2::UNIT_X + Vector2::UNIT_Y * (4. + add_y)
@@ -474,139 +453,174 @@ impl Madeline {
     }
 
     #[no_mangle]
-    /// Moves Madeline on the X axis, respecting movement callbacks.
-    /// Enable call_back if you want to respect what the player should do when hitting a wall.
-    pub extern "C" fn CLST_MoveH(&mut self, mut amount: f32, call_back: bool) -> bool {
-        let mut hit = false;
-        if let Some(callback) = self.move_h_callback {
-            hit = callback(self, &mut amount);
-        }
-        self.position.x += amount;
-        if call_back && hit {
-            // OnCollideH
+    // Did a bit of detective work, it seems the Exact movement functions take integers based on this on line 1855:
+    // MoveVExact((int)(fromY - Bottom));
+    pub extern "C" fn CLST_MoveHExact(&mut self, amount: i32, callback: bool) -> bool {
+        // Do a raycast
+        let mut move_amount = 0;
+        let step = amount.signum();
+        while move_amount != amount {
+            move_amount += step;
 
-            if self.dash_attacking() && hit {
-                if let Some(cb) = self.dash_collision_callback {
-                    let res = cb(self, self.dash_dir);
-                    match res {
-                        DashCollisionResults::ResBounce =>
-                            self.reflect_bounce(Vector2::new(
-                                -self.speed.x.signum(),
-                                0.
-                            )),
-                        DashCollisionResults::ResRebound =>
-                            self.rebound(self.speed.x.signum() as i8),
-                        DashCollisionResults::ResIgnore => ()
-                    }
-                    return true;
+            if self.collide(self.position + Vector2::UNIT_X * move_amount as f32) {
+                self.position.x += move_amount as f32;
+                if callback {
+                    self.on_collide_h();
                 }
+                return true;
             }
-
-            if self.state == State::StDash {
-                if self.on_ground && self.can_unduck_at(self.position + Vector2::UNIT_X * self.speed.x.signum()) {
-                    self.set_ducking(true);
-                    return true;
-                } else if self.speed.y == 0. && self.speed.x != 0. {
-                    for i in 1..=DASH_CORNER_CORRECTION {
-                        for j in [1, -1] {
-                            if !self.collide(self.position + Vector2::new(self.speed.x.signum(), i as f32 * j as f32)) {
-                                self.CLST_MoveV(i as f32 * j as f32, false);
-                                self.CLST_MoveH(self.speed.x.signum(), false);
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if self.wall_speed_retention_timer <= 0. {
-                self.wall_speed_retained = self.speed.x;
-                self.wall_speed_retention_timer = WALL_SPEED_RETENTION_TIME;
-            }
-
-            self.speed.x = 0.;
-            self.dash_attack_timer = 0.;
         }
-        hit
+        self.position.x += amount as f32;
+        false
     }
 
     #[no_mangle]
-    /// Moves Madeline on the Y axis, respecting movement callbacks.
-    /// Enable call_back if you want to respect what the player should do when hitting a ceiling or floor.
-    pub extern "C" fn CLST_MoveV(&mut self, mut amount: f32, call_back: bool) -> bool {
-        let mut hit = false;
-        if let Some(callback) = self.move_v_callback {
-            hit = callback(self, &mut amount);
-        }
-        self.position.y += amount;
-        if call_back && hit {
-            // OnCollideV
-            if self.state == State::StSwim {
-                self.speed.y = 0.;
+    pub extern "C" fn CLST_MoveVExact(&mut self, amount: i32, callback: bool) -> bool {
+        let mut move_amount = 0;
+        let step = amount.signum();
+        while move_amount != amount {
+            move_amount += step;
+
+            if self.collide(self.position + Vector2::UNIT_Y * move_amount as f32) {
+                self.position.y += move_amount as f32;
+                if callback {
+                    self.on_collide_v();
+                }
                 return true;
             }
+        }
+        self.position.y += amount as f32;
+        false
+    }
 
-            if self.dash_attacking() && hit {
-                if let Some(cb) = self.dash_collision_callback {
-                    let res = cb(self, self.dash_dir);
-                    match res {
-                        DashCollisionResults::ResBounce =>
-                            self.reflect_bounce(Vector2::new(
-                                0.,
-                                -self.speed.y.signum()
-                            )),
-                        DashCollisionResults::ResRebound =>
-                            self.rebound(0),
-                        DashCollisionResults::ResIgnore => ()
-                    }
-                    return true;
+    #[no_mangle]
+    /// Moves Madeline on the X axis.
+    pub extern "C" fn CLST_MoveH(&mut self, amount: f32, callback: bool) -> bool {
+        self.rem_position.x += amount;
+        // Subpixels seem to be stored separately? This is mostly just guesswork
+        // That would make sense, looking at the PICO-8 player code
+        let rounded_x = self.rem_position.x.round();
+        if rounded_x != 0. {
+            self.rem_position.x -= rounded_x;
+            self.CLST_MoveHExact(amount as i32, callback)
+        } else { false }
+    }
+
+    #[no_mangle]
+    /// Moves Madeline on the Y axis.
+    pub extern "C" fn CLST_MoveV(&mut self, amount: f32, callback: bool) -> bool {
+        let rounded_y = self.rem_position.y.round();
+        if rounded_y != 0. {
+            self.rem_position.y -= rounded_y;
+            self.CLST_MoveVExact(amount as i32, callback)
+        } else { false }
+    }
+
+    fn on_collide_h(&mut self) {
+        if self.dash_attacking() {
+            if let Some(cb) = self.dash_collision_callback {
+                let res = cb(self, self.dash_dir);
+                match res {
+                    DashCollisionResults::ResBounce =>
+                        self.reflect_bounce(Vector2::new(
+                            -self.speed.x.signum(),
+                            0.
+                        )),
+                    DashCollisionResults::ResRebound =>
+                        self.rebound(self.speed.x.signum() as i8),
+                    DashCollisionResults::ResIgnore => ()
                 }
+                return;
             }
+        }
 
-            if self.speed.y > 0. {
-                if self.dash_dir.x != 0. && self.dash_dir.y > 0. && self.speed.y > 0. {
-                    self.dash_dir.x = self.dash_dir.x.signum();
-                    self.dash_dir.y = 0.;
-                    self.speed.y = 0.;
-                    self.speed.x *= DODGE_SLIDE_SPEED_MULT;
-                    self.set_ducking(true);
-                }
-    
-    
-                if self.state != State::StClimb {                    
-                    self.rumble(RumbleStrength::StrLight, RumbleLength::LenShort);
-                }
-            } else if self.speed.y < 0. {
-                if self.speed.x <= 0. {
-                    for i in 1..UPWARD_CORNER_CORRECTION {
-                        if !self.collide(self.position + Vector2::new(-i as f32, -1.)) {
-                            self.position += Vector2::new(-i  as f32, -1.);
-                            return true;
-                        }
-                    }
-                }
-
-                if self.speed.x >= 0. {
-                    for i in 1..UPWARD_CORNER_CORRECTION {
-                        if !self.collide(self.position + Vector2::new(i as f32, -1.)) {
-                            self.position += Vector2::new(i  as f32, -1.);
-                            return true;
+        if self.state == State::StDash {
+            if self.on_ground && self.can_unduck_at(self.position + Vector2::UNIT_X * self.speed.x.signum()) {
+                self.set_ducking(true);
+                return;
+            } else if self.speed.y == 0. && self.speed.x != 0. {
+                for i in 1..=DASH_CORNER_CORRECTION {
+                    for j in [1, -1] {
+                        if !self.collide(self.position + Vector2::new(self.speed.x.signum(), i as f32 * j as f32)) {
+                            self.CLST_MoveVExact(i * j, false);
+                            self.CLST_MoveHExact(self.speed.x.signum() as i32, false);
+                            return;
                         }
                     }
                 }
             }
         }
 
-        if hit {
+        if self.wall_speed_retention_timer <= 0. {
+            self.wall_speed_retained = self.speed.x;
+            self.wall_speed_retention_timer = WALL_SPEED_RETENTION_TIME;
+        }
+
+        self.speed.x = 0.;
+        self.dash_attack_timer = 0.;
+    }
+
+    fn on_collide_v(&mut self) -> bool {
+        if self.state == State::StSwim {
+            self.speed.y = 0.;
+            return true;
+        }
+
+        if self.dash_attacking() {
+            if let Some(cb) = self.dash_collision_callback {
+                let res = cb(self, self.dash_dir);
+                match res {
+                    DashCollisionResults::ResBounce =>
+                        self.reflect_bounce(Vector2::new(
+                            0.,
+                            -self.speed.y.signum()
+                        )),
+                    DashCollisionResults::ResRebound =>
+                        self.rebound(0),
+                    DashCollisionResults::ResIgnore => ()
+                }
+                return true;
+            }
+        }
+
+        if self.speed.y > 0. {
+            if self.dash_dir.x != 0. && self.dash_dir.y > 0. && self.speed.y > 0. {
+                self.dash_dir.x = self.dash_dir.x.signum();
+                self.dash_dir.y = 0.;
+                self.speed.y = 0.;
+                self.speed.x *= DODGE_SLIDE_SPEED_MULT;
+                self.set_ducking(true);
+            }
+
+
+            if self.state != State::StClimb {                    
+                self.rumble(RumbleStrength::StrLight, RumbleLength::LenShort);
+            }
+        } else if self.speed.y < 0. {
+            if self.speed.x <= 0. {
+                for i in 1..UPWARD_CORNER_CORRECTION {
+                    if !self.collide(self.position + Vector2::new(-i as f32, -1.)) {
+                        self.position += Vector2::new(-i  as f32, -1.);
+                        return true;
+                    }
+                }
+            }
+
+            if self.speed.x >= 0. {
+                for i in 1..UPWARD_CORNER_CORRECTION {
+                    if !self.collide(self.position + Vector2::new(i as f32, -1.)) {
+                        self.position += Vector2::new(i  as f32, -1.);
+                        return true;
+                    }
+                }
+            }
+
             if self.var_jump_timer < VAR_JUMP_TIME - CEILING_VAR_JUMP_GRACE {
                 self.var_jump_timer = 0.;
             }
-
-            self.dash_attack_timer = 0.;
-            self.speed.y = 0.;
         }
 
-        hit
+        false
     }
 
     fn check_stamina(&self) -> f32 {
@@ -672,9 +686,9 @@ impl Madeline {
         }
     }
     
-    fn play_sound(&self, name: &'static [u8]) {
+    fn play_sound(&self, name: &'static ffi::CStr) {
         if let Some(cb) = self.sound_callback {
-            cb(name.into())
+            cb(name.as_ptr())
         }
     }
 
@@ -693,7 +707,7 @@ impl Madeline {
         self.var_jump_speed = self.speed.y;
 
         if play_sfx {
-            self.play_sound(b"char_mad_jump");
+            self.play_sound(c"char_mad_jump");
         }
     }
 
@@ -706,11 +720,11 @@ impl Madeline {
         self.wall_slide_timer = WALL_SLIDE_TIME;
         self.wall_boost_timer = 0.;
 
-        self.speed.x += SUPER_JUMP_H * self.facing as i8 as f32;
+        self.speed.x = SUPER_JUMP_H * self.facing as i8 as f32;
         self.speed.y = JUMP_SPEED;
         self.speed += self.lift_boost();
 
-        self.play_sound(b"char_mad_jump");
+        self.play_sound(c"char_mad_jump");
 
         if self.ducking() {
             self.set_ducking(false);
@@ -744,7 +758,7 @@ impl Madeline {
         self.speed += self.lift_boost();
         self.var_jump_speed = self.speed.y;
 
-        self.play_sound(b"char_mad_jump_wall")
+        self.play_sound(c"char_mad_jump_wall")
     }
 
     fn super_wall_jump(&mut self, dir: i8) {
@@ -763,7 +777,7 @@ impl Madeline {
         self.speed += self.lift_boost();
         self.var_jump_speed = self.speed.y;
 
-        self.play_sound(b"char_mad_jump_superwall")
+        self.play_sound(c"char_mad_jump_superwall")
     }
 
     fn climb_hop(&mut self) {
@@ -787,7 +801,7 @@ impl Madeline {
             self.wall_boost_timer = CLIMB_JUMP_BOOST_TIME;
         }
 
-        self.play_sound(b"char_mad_jump_climb")
+        self.play_sound(c"char_mad_jump_climc")
     }
 
     fn rebound(&mut self, dir: i8) {
@@ -1050,7 +1064,7 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
                 if !maddy.collide(maddy.position + Vector2::UNIT_Y * -i as f32)
                     && maddy.climb_check(-i as f32)
                 {
-                    maddy.CLST_MoveV(-i as f32, false);
+                    maddy.CLST_MoveVExact(-i, false);
                     maddy.set_ducking(false);
                     return State::StClimb;
                 }
@@ -1065,17 +1079,17 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
         return State::StDash;
     }
 
-    if !maddy.ducking() {
-        if maddy.on_ground && maddy.input.aim.y >= maddy.input.deadzone.y {
+    if maddy.ducking() {
+        if maddy.on_ground && maddy.input.aim.y < maddy.input.deadzone.y {
             if maddy.can_unduck() {
                 maddy.set_ducking(false);
             } else if maddy.speed.x == 0. {
                 for i in (1..=DUCK_CORRECT_CHECK).rev() {
                     if maddy.can_unduck_at(maddy.position + Vector2::UNIT_X * i as f32) {
-                        maddy.CLST_MoveH(DUCK_CORRECT_SLIDE, true);
+                        maddy.CLST_MoveH(DUCK_CORRECT_SLIDE, false);
                         break;
                     } else if maddy.can_unduck_at(maddy.position - Vector2::UNIT_X * i as f32) {
-                        maddy.CLST_MoveH(DUCK_CORRECT_SLIDE, true);
+                        maddy.CLST_MoveH(-DUCK_CORRECT_SLIDE, false);
                         break;
                     }
                 }
@@ -1127,14 +1141,14 @@ fn update_normal(maddy: &mut Madeline, delta_time: f32) -> State {
 
                 max_fall = MAX_FALL.lerp(WALL_SLIDE_START_MAX, maddy.wall_slide_timer / WALL_SLIDE_TIME);
             }
-
-            let mult = 
-                if maddy.speed.y.abs() < HALF_GRAV_THRESHOLD && (maddy.input.jumping() || maddy.auto_jump)
-                    { 0.5 } else { 1.0 }
-                * maddy.inventory.gravity_mult;
-
-            maddy.speed.y = maddy.speed.y.approach(max_fall, GRAVITY * mult * delta_time);
         }
+
+        let mult = 
+            if maddy.speed.y.abs() < HALF_GRAV_THRESHOLD && (maddy.input.jump || maddy.auto_jump)
+                { 0.5 } else { 1.0 }
+            * maddy.inventory.gravity_mult;
+
+        maddy.speed.y = maddy.speed.y.approach(max_fall, GRAVITY * mult * delta_time);
     }
 
     if maddy.var_jump_timer > 0. {
@@ -1378,7 +1392,7 @@ fn update_swim(maddy: &mut Madeline, delta_time: f32) -> State {
         && !maddy.is_tired() && maddy.can_unduck()
         && maddy.speed.x.signum() != maddy.facing as i8 as f32
         && maddy.climb_check(0.)
-        && !maddy.CLST_MoveV(-1., false)
+        && !maddy.CLST_MoveVExact(-1, false)
     {
         maddy.set_ducking(false);
         return State::StClimb;

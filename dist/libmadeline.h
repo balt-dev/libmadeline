@@ -117,11 +117,6 @@ typedef struct CLST_Input {
     bool talk_consumed;
 } CLST_Input;
 
-typedef struct CLST_CStaticStr {
-    const uint8_t *ptr;
-    uintptr_t len;
-} CLST_CStaticStr;
-
 typedef struct CLST_Inventory {
     uint8_t max_dashes;
     bool no_refills;
@@ -162,8 +157,11 @@ typedef struct CLST_Madeline {
     /**
      * A callback when sound is supposed to be played.
      * These sounds can be mapped to whatever you want.
+     *
+     * Note that these sound names are not allocated, and are in fact pointers to static values!
+     * You do not need to, and in fact should not, delete, free, or use CLST_DropDebugString on them.
      */
-    void (*sound_callback)(struct CLST_CStaticStr);
+    void (*sound_callback)(const char*);
     /**
      * A callback for controller rumble.
      */
@@ -218,10 +216,6 @@ typedef struct CLST_Madeline {
      * Make sure you set this when Madeline is on top of a moving object!
      */
     struct CLST_Vector2 lift_speed;
-    /**
-     * Whether Madeline is on a surface that is moving.
-     */
-    bool is_riding;
     float time_active;
     float coroutine_timer;
     enum CLST_DashCoroutineBreakpoint dash_coroutine_breakpoint;
@@ -295,23 +289,41 @@ struct CLST_Madeline *CLST_New(struct CLST_Vector2 position);
 void CLST_Drop(struct CLST_Madeline *this_);
 
 /**
+ * Gets a string representaiton of this object.
+ * This should probably only be used for debugging.
+ *
+ * **DO NOT DELETE OR FREE THE STRING.**
+ * Instead, pass it to CLST_DropDebugString to safely deallocate it.
+ *
+ * Along with this, do not alter the string before deallocating it.
+ */
+char *CLST_DebugString(const struct CLST_Madeline *self);
+
+/**
+ * Safely deallocates a string obtained via CLST_DebugString.
+ *
+ * Do not pass a string from sound_callback to this function!
+ */
+void CLST_DropDebugString(char *char_);
+
+/**
  * Ticks Madeline's internal state, using the delta-time between the last tick.
  */
 void CLST_Tick(struct CLST_Madeline *self, float delta_time);
 
-/**
- * Moves Madeline on the X axis, respecting movement callbacks.
- * Enable call_back if you want to respect what the player should do when hitting a wall.
- */
-bool CLST_MoveH(struct CLST_Madeline *self, float amount, bool call_back);
+bool CLST_MoveHExact(struct CLST_Madeline *self, float amount);
+
+bool CLST_MoveVExact(struct CLST_Madeline *self, float amount);
 
 /**
- * Moves Madeline on the Y axis, respecting movement callbacks.
- * Enable call_back if you want to respect what the player should do when hitting a ceiling or floor.
+ * Moves Madeline on the X axis.
  */
-bool CLST_MoveV(struct CLST_Madeline *self,
-                float amount,
-                bool call_back);
+bool CLST_MoveH(struct CLST_Madeline *self, float amount, bool callback);
+
+/**
+ * Moves Madeline on the Y axis.
+ */
+bool CLST_MoveV(struct CLST_Madeline *self, float amount, bool callback);
 
 /**
  * Sets the state of Madeline's state machine,

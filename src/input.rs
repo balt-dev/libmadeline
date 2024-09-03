@@ -61,13 +61,23 @@ impl Input {
         self.talk && !self.talk_consumed
     }
 
+    pub fn get_move_x(&self) -> i8 {
+        if self.aim.x.abs() < self.deadzone.x {
+            0
+        } else if self.aim.x > 0. {
+            1
+        } else {
+            -1
+        }
+    }
+
     pub fn get_aim_vector(&self, facing: i8, snap: bool) -> Vector2 {
         // This is heuristic and based entirely on my experience in the game :P
         if self.aim == Vector2::ZERO {
             return Vector2::new(facing as f32, 0.);
         }
         Vector2::new(
-            if self.aim.x.abs() < self.deadzone.x {
+            if self.aim.x.abs() > self.deadzone.x {
                 if snap {
                     self.aim.x.signum()
                 } else {
@@ -76,7 +86,7 @@ impl Input {
             } else {
                 0.
             },
-            if self.aim.y.abs() < self.deadzone.y {
+            if self.aim.y.abs() > self.deadzone.y {
                 if snap {
                     self.aim.y.signum()
                 } else {
@@ -85,8 +95,7 @@ impl Input {
             } else {
                 0.
             },
-        )
-        .normalized()
+        ).normalized()
     }
 }
 

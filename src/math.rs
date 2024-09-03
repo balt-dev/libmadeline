@@ -50,7 +50,7 @@ impl Vector2 {
         if length == 0. {
             Vector2::ZERO
         } else {
-            self / self.length()
+            self / length
         }
     }
 }
