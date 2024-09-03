@@ -10,20 +10,18 @@ the implementation does not do some assistance that the base game does,
 meaning that _this will not run your TAS'es,_ sorry to say - this is more meant for casual play. Among these unimplemented things are holdable objects (e.g. Theo).
 
 Also, climbhopping is unimplemented
-because it's janky and annoying and really hard to get right.
-
-You instead do a climb jump without spending stamina for it with some extra speed added towards the wall you hopped from.
+because it's janky and annoying and really hard to get right - you instead do a climb jump without spending stamina for it with some extra speed added towards the wall you hopped from.
 
 
 
 That being said, all movement tech that doesn't depend on these does work (to my knowledge)!
 You can go and do your chained ultras and reverse supers and all that jazz all you want.
 
-Note that I'm not perfect, and there are a few bugs that I either don't know about, or can't figure out how to fix. PRs are welcome!
+Note that I'm not perfect, and there are bugs that I either don't know about, or can't figure out how to fix. PRs are welcome!
 
 ## Usage
 
-You can find a copy of the library in the `dist` folder, and an example project in the `demo` folder.
+You can find an example project in the `demo` folder.
 
 In order to get an instance of Madeline, you need to call `CLST_Init`, which will give you a pointer to a Madeline object.
 
