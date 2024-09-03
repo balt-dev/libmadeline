@@ -21,6 +21,8 @@ Note that I'm not perfect, and there are bugs that I either don't know about, or
 
 ## Usage
 
+To get compiled versions of the library, you can go to the `Actions` tab on GitHub, click the latest one, and scroll down to the build artifacts. Libraries compiled for Windows, MacOS, and Linux are included there, along with a header file.
+
 You can find an example project in the `demo` folder.
 
 In order to get an instance of Madeline, you need to call `CLST_Init`, which will give you a pointer to a Madeline object.
