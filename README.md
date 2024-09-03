@@ -72,7 +72,7 @@ SOFTWARE.
 
 This code is licensed under the Mozilla Public License, version 2.0.
 Said license can be found in the LICENSE file at the root of this repository.
-
+Along with this, you must follow the original MIT license of Player.cs.
 
 
 ---
