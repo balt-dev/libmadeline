@@ -7,3 +7,4 @@ demo/*
 !demo/main.c
 !demo/*.bmp
 !demo/README.md
+!demo/Makefile
