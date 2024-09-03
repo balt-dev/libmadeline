@@ -19,28 +19,40 @@ jobs:
       with:
         name: windows
         if-no-files-found: error
-        path: target/release/mylibrary.dll
+        path: target/release/*.dll
   build-macos:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
     - run: rustup update
     - run: cargo build --release
-    - run: ls -R
     - uses: actions/upload-artifact@v4
       with:
         name: macos
         if-no-files-found: error
-        path: target/release/mylibrary.so
+        path: target/release/*.so
   build-linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - run: rustup update
     - run: cargo build --release
-    - run: ls -R
     - uses: actions/upload-artifact@v4
       with:
         name: linux
         if-no-files-found: error
-        path: target/release/mylibrary.so
+        path: target/release/*.so
+  create-headers:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: Reloaded-Project/cbindgen-action@v1
+      with:
+        rust-project-path: '.'
+        config-file: 'cbindgen.toml'
+        output-header-file: 'libmadeline.h'
+    - uses: actions/upload-artifact@v4
+      with:
+        name: headers
+        if-no-files-found: error
+        path: libmadeline.h
