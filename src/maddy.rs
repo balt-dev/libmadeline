@@ -598,7 +598,7 @@ impl Madeline {
             }
         } else if self.speed.y < 0. {
             if self.speed.x <= 0. {
-                for i in 1..UPWARD_CORNER_CORRECTION {
+                for i in 1..=UPWARD_CORNER_CORRECTION {
                     if !self.collide(self.position + Vector2::new(-i as f32, -1.)) {
                         self.position += Vector2::new(-i  as f32, -1.);
                         return true;
@@ -607,7 +607,7 @@ impl Madeline {
             }
 
             if self.speed.x >= 0. {
-                for i in 1..UPWARD_CORNER_CORRECTION {
+                for i in 1..=UPWARD_CORNER_CORRECTION {
                     if !self.collide(self.position + Vector2::new(i as f32, -1.)) {
                         self.position += Vector2::new(i  as f32, -1.);
                         return true;
