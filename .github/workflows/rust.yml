@@ -51,6 +51,7 @@ jobs:
         rust-project-path: '.'
         config-file: 'cbindgen.toml'
         output-header-file: 'libmadeline.h'
+        upload-artifact: 'false'
     - uses: actions/upload-artifact@v4
       with:
         name: headers
