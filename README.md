@@ -3,7 +3,9 @@ Programmers don't do things because they're easy. We do them because we _thought
 ---
 Puts the movement code (graphics not included) of Madeline from Celeste into a DLL you can include in just about anything!
 
+https://github.com/user-attachments/assets/7b75f321-514c-443b-b651-516c0d2554fd
 
+## Notes
 
 Only a subset of the possible player states are programmed in (`Normal`, `Dash`, `Climb`, and `Swim`), and
 the implementation does not do some assistance that the base game does,
@@ -11,8 +13,6 @@ meaning that _this will not run your TAS'es,_ sorry to say - this is more meant 
 
 Also, climbhopping is unimplemented
 because it's janky and annoying and really hard to get right - you instead do a climb jump without spending stamina for it with some extra speed added towards the wall you hopped from.
-
-
 
 That being said, all movement tech that doesn't depend on these does work (to my knowledge)!
 You can go and do your chained ultras and reverse supers and all that jazz all you want.
